@@ -15,11 +15,6 @@ pub fn div_single(n: u64, i: usize) -> Option<u64> {
 ///
 /// The dividend is 1-word, 64-bit, same with divisor.
 ///
-/// Use the algorithm in Granlund & Montgomery's paper:
-///   https://gmplib.org/%7Etege/divcnst-pldi94.pdf
-/// A good tutorial for the algorithm:
-///   https://homepage.divms.uiowa.edu/%7Ejones/bcd/divide.html
-///
 /// # Safety:
 ///
 /// It's UB if: `i > 19`.
@@ -75,9 +70,6 @@ pub fn div_double(n: u128, i: usize) -> Option<(u64, u64)> {
 /// Calculate division: `n / 10.pow(i)`, return the quotient and remainder.
 ///
 /// The dividend is 2-word, 128-bit, double of divisor.
-///
-/// Use the algorithm in Moller and Granlund's paper: Improved division by
-/// invariant integers: https://gmplib.org/~tege/division-paper.pdf
 ///
 /// # Safety:
 ///

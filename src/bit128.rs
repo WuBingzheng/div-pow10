@@ -15,11 +15,6 @@ pub fn div_single(n: u128, i: usize) -> Option<u128> {
 ///
 /// The divident is 1-word, 128-bit, same with divisor.
 ///
-/// Use the algorithm in Granlund & Montgomery's paper:
-///   <https://gmplib.org/%7Etege/divcnst-pldi94.pdf>
-/// A good tutorial for the algorithm:
-///   <https://homepage.divms.uiowa.edu/%7Ejones/bcd/divide.html>
-///
 /// # Saftey:
 ///
 /// It's UB if `i > 38`.
@@ -103,9 +98,6 @@ pub fn div_double(n_high: u128, n_low: u128, i: usize) -> Option<(u128, u128)> {
 /// quotient and remainder.
 ///
 /// The divident is 2-word, 256-bit, double of divisor.
-///
-/// Use the algorithm in Moller and Granlund's paper: Improved division by
-/// invariant integers: https://gmplib.org/~tege/division-paper.pdf
 ///
 /// # Safety:
 ///
