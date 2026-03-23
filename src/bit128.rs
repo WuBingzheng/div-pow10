@@ -94,6 +94,21 @@ pub fn div_double(n_high: u128, n_low: u128, i: usize) -> Option<(u128, u128)> {
     Some(unsafe { unchecked_div_double(n_high, n_low, i) })
 }
 
+pub fn x_unchecked_div_double(n_high: u128, n_low: u128, i: usize) -> (u128, u128) {
+    if i <= 19 {
+        debug_assert!(n_high < POWERS[i]);
+
+        let d = (n_high << 64) | (n_low >> 64);
+        let (q1, r) = unsafe { crate::bit64::unchecked_div_double(d, i) };
+
+        let d = ((r as u128) << 64) | (n_low as u64 as u128);
+        let (q2, r) = unsafe { crate::bit64::unchecked_div_double(d, i) };
+        ((q1 as u128) << 64 | q2 as u128, r as u128)
+    } else {
+        unsafe { unchecked_div_double(n_high, n_low, i) }
+    }
+}
+
 /// Calculate division: `[n_high, n_low] / 10.pow(i)` , return the
 /// quotient and remainder.
 ///

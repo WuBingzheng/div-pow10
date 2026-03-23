@@ -4,3 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+
+[dev-dependencies]
+itoa = "1.0"
+itoap = {version="1.0"}
+criterion = { version = "0.7", features = ["html_reports"] }
+
+[[bench]]
+name = "benchmark"
+harness = false
