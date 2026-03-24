@@ -94,21 +94,6 @@ pub fn div_double(n_high: u128, n_low: u128, i: usize) -> Option<(u128, u128)> {
     Some(unsafe { unchecked_div_double(n_high, n_low, i) })
 }
 
-pub fn x_unchecked_div_double(n_high: u128, n_low: u128, i: usize) -> (u128, u128) {
-    if i <= 19 {
-        debug_assert!(n_high < POWERS[i]);
-
-        let d = (n_high << 64) | (n_low >> 64);
-        let (q1, r) = unsafe { crate::bit64::unchecked_div_double(d, i) };
-
-        let d = ((r as u128) << 64) | (n_low as u64 as u128);
-        let (q2, r) = unsafe { crate::bit64::unchecked_div_double(d, i) };
-        ((q1 as u128) << 64 | q2 as u128, r as u128)
-    } else {
-        unsafe { unchecked_div_double(n_high, n_low, i) }
-    }
-}
-
 /// Calculate division: `[n_high, n_low] / 10.pow(i)` , return the
 /// quotient and remainder.
 ///
@@ -206,6 +191,81 @@ pub unsafe fn unchecked_div_double(n_high: u128, n_low: u128, i: usize) -> (u128
     } else {
         (q + 1, r_low - exp)
     }
+}
+
+pub fn div_single_mix(n: u128, i: usize) -> Option<u128> {
+    if i <= 9 {
+        Some(unsafe { unchecked_div_single_small(n, i) })
+    } else if i <= POWERS.len() {
+        Some(unsafe { unchecked_div_single(n, i) })
+    } else {
+        None
+    }
+}
+
+pub unsafe fn unchecked_div_single_mix(n: u128, i: usize) -> u128 {
+    if i <= 9 {
+        unsafe { unchecked_div_single_small(n, i) }
+    } else {
+        unsafe { unchecked_div_single(n, i) }
+    }
+}
+
+// i.pow(10) fits in 32-bits.
+unsafe fn unchecked_div_single_small(n: u128, i: usize) -> u128 {
+    debug_assert!(i <= 9);
+    let exp = POWERS[i] as u64;
+
+    let high = (n >> 64) as u64;
+    let low = n as u64;
+
+    let q1 = high / exp;
+    let r = high % exp;
+
+    let mid = r << 32 | low >> 32;
+    let q2 = mid / exp;
+    let r = mid % exp;
+
+    let lowlow = r << 32 | (low & u32::MAX as u64);
+    let q3 = lowlow / exp;
+
+    (q1 as u128) << 64 | (q2 as u128) << 32 | q3 as u128
+}
+
+pub fn div_double_mix(n_high: u128, n_low: u128, i: usize) -> Option<(u128, u128)> {
+    let Some(exp) = POWERS.get(i) else {
+        return None;
+    };
+    if &n_high >= exp {
+        return None;
+    }
+    if i <= 19 {
+        unsafe { unchecked_div_double_small(n_high, n_low, i) }
+    } else {
+        unsafe { unchecked_div_double(n_high, n_low, i) }
+    }
+    .into() // Some()
+}
+
+pub unsafe fn unchecked_div_double_mix(n_high: u128, n_low: u128, i: usize) -> (u128, u128) {
+    if i <= 19 {
+        unsafe { unchecked_div_double_small(n_high, n_low, i) }
+    } else {
+        unsafe { unchecked_div_double(n_high, n_low, i) }
+    }
+}
+
+// i.pow(10) fits in 64-bits.
+unsafe fn unchecked_div_double_small(n_high: u128, n_low: u128, i: usize) -> (u128, u128) {
+    debug_assert!(i <= 19);
+    debug_assert!(n_high < POWERS[i]);
+
+    let d = (n_high << 64) | (n_low >> 64);
+    let (q1, r) = unsafe { crate::bit64::unchecked_div_double(d, i) };
+
+    let d = ((r as u128) << 64) | (n_low as u64 as u128);
+    let (q2, r) = unsafe { crate::bit64::unchecked_div_double(d, i) };
+    ((q1 as u128) << 64 | q2 as u128, r as u128)
 }
 
 // calculate: a * b => (mhigh,mlow)
