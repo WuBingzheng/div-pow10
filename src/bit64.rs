@@ -3,7 +3,7 @@
 /// The dividend is 1-word, 64-bit, same with divisor.
 ///
 /// Return None if: `i > 19`.
-pub fn div_single(n: u64, i: usize) -> Option<u64> {
+pub fn div_single(n: u64, i: u32) -> Option<u64> {
     if i > 19 {
         None
     } else {
@@ -18,7 +18,7 @@ pub fn div_single(n: u64, i: usize) -> Option<u64> {
 /// # Safety:
 ///
 /// It's UB if: `i > 19`.
-pub unsafe fn unchecked_div_single(n: u64, i: usize) -> u64 {
+pub unsafe fn unchecked_div_single(n: u64, i: u32) -> u64 {
     const GM_EXP_MAGICS: [(u64, u32); 20] = [
         (0, 0),
         (0x999999999999999a, 3),
@@ -42,7 +42,7 @@ pub unsafe fn unchecked_div_single(n: u64, i: usize) -> u64 {
         (0xd83c94fb6d2ac34b, 63),
     ];
 
-    let magic = unsafe { GM_EXP_MAGICS.get_unchecked(i) };
+    let magic = unsafe { GM_EXP_MAGICS.get_unchecked(i as usize) };
 
     // (n + ((n * m) >> 64)) >> l
     let high = ((n as u128 * magic.0 as u128) >> 64) as u64;
@@ -57,8 +57,8 @@ pub unsafe fn unchecked_div_single(n: u64, i: usize) -> u64 {
 /// The dividend is 2-word, 128-bit, double of divisor.
 ///
 /// Return `None` if: `i > 19` or `n>>64 >= 10.pow(i)`.
-pub fn div_double(n: u128, i: usize) -> Option<(u64, u64)> {
-    let Some(exp) = POWERS.get(i) else {
+pub fn div_double(n: u128, i: u32) -> Option<(u64, u64)> {
+    let Some(exp) = POWERS.get(i as usize) else {
         return None;
     };
     if (n >> 64) as u64 >= *exp {
@@ -74,9 +74,9 @@ pub fn div_double(n: u128, i: usize) -> Option<(u64, u64)> {
 /// # Safety:
 ///
 /// It's UB if: `i > 19` or `n>>64 >= 10.pow(i)`.
-pub unsafe fn unchecked_div_double(n: u128, i: usize) -> (u64, u64) {
-    debug_assert!(i < POWERS.len());
-    let exp = unsafe { *POWERS.get_unchecked(i) };
+pub unsafe fn unchecked_div_double(n: u128, i: u32) -> (u64, u64) {
+    debug_assert!((i as usize) < POWERS.len());
+    let exp = unsafe { *POWERS.get_unchecked(i as usize) };
 
     // check overflow
     debug_assert!((n >> 64) as u64 >= exp);
@@ -116,7 +116,7 @@ pub unsafe fn unchecked_div_double(n: u128, i: usize) -> (u64, u64) {
     //   q = (((magic * zn) >> 64) + zn) >> 64
 
     // SAFETY: exp has been read by i already
-    let &(magic, zeros) = unsafe { MG_EXP_MAGICS.get_unchecked(i) };
+    let &(magic, zeros) = unsafe { MG_EXP_MAGICS.get_unchecked(i as usize) };
 
     // calc: (high, low) := n << zeros
     let zn = n << zeros;

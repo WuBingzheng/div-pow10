@@ -20,11 +20,11 @@ fn bit64_prim_const(a: u64) -> u64 {
     a / 1000_000
 }
 #[inline(never)]
-fn bit64_single(a: u64, i: usize) -> u64 {
+fn bit64_single(a: u64, i: u32) -> u64 {
     unsafe { bit64::unchecked_div_single(a, i) }
 }
 #[inline(never)]
-fn bit64_double(a: u128, i: usize) -> (u64, u64) {
+fn bit64_double(a: u128, i: u32) -> (u64, u64) {
     unsafe { bit64::unchecked_div_double(a, i) }
 }
 
@@ -37,11 +37,11 @@ fn bit128_prim_const(a: u128) -> u128 {
     a / 1000_000_000
 }
 #[inline(never)]
-fn bit128_single(a: u128, i: usize) -> u128 {
+fn bit128_single(a: u128, i: u32) -> u128 {
     unsafe { bit128::unchecked_div_single(a, i) }
 }
 #[inline(never)]
-fn bit128_double(a: u128, b: u128, i: usize) -> (u128, u128) {
+fn bit128_double(a: u128, b: u128, i: u32) -> (u128, u128) {
     unsafe { bit128::unchecked_div_double(a, b, i) }
 }
 
@@ -66,8 +66,8 @@ fn bench_bit64(c: &mut Criterion) {
 
     let n = 10_u64.pow(18) - 1;
     let d = 10_u128.pow(30) - 1;
-    let i = 6_usize;
-    let pow = 10_u64.pow(i as u32);
+    let i = 6_u32;
+    let pow = 10_u64.pow(i);
     group.bench_with_input("prim", &(n, pow), |b, i| {
         b.iter(|| black_box(bit64_prim(i.0, i.1)))
     });
@@ -89,8 +89,8 @@ fn bench_bit128(c: &mut Criterion) {
     let mut group = c.benchmark_group("bit128");
 
     let n = 10_u128.pow(30) - 1;
-    let i = 9_usize;
-    let pow = 10_u128.pow(i as u32);
+    let i = 9_u32;
+    let pow = 10_u128.pow(i);
     group.bench_with_input("prim", &(n, pow), |b, i| {
         b.iter(|| black_box(bit128_prim(i.0, i.1)))
     });
@@ -103,8 +103,8 @@ fn bench_bit128(c: &mut Criterion) {
     group.bench_with_input("double-small", &(pow - 1, n, i), |b, i| {
         b.iter(|| black_box(bit128_double(i.0, i.1, i.2)))
     });
-    let i = 24_usize;
-    let pow = 10_u128.pow(i as u32);
+    let i = 24_u32;
+    let pow = 10_u128.pow(i);
     group.bench_with_input("double-big", &(pow - 1, n, i), |b, i| {
         b.iter(|| black_box(bit128_double(i.0, i.1, i.2)))
     });
