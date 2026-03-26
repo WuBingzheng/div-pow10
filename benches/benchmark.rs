@@ -41,16 +41,8 @@ fn bit128_single(a: u128, i: usize) -> u128 {
     unsafe { bit128::unchecked_div_single(a, i) }
 }
 #[inline(never)]
-fn bit128_single_mix(a: u128, i: usize) -> u128 {
-    unsafe { bit128::unchecked_div_single_mix(a, i) }
-}
-#[inline(never)]
 fn bit128_double(a: u128, b: u128, i: usize) -> (u128, u128) {
     unsafe { bit128::unchecked_div_double(a, b, i) }
-}
-#[inline(never)]
-fn bit128_double_mix(a: u128, b: u128, i: usize) -> (u128, u128) {
-    unsafe { bit128::unchecked_div_double_mix(a, b, i) }
 }
 
 fn bench_bit32(c: &mut Criterion) {
@@ -108,14 +100,13 @@ fn bench_bit128(c: &mut Criterion) {
     group.bench_with_input("single", &(n, i), |b, i| {
         b.iter(|| black_box(bit128_single(i.0, i.1)))
     });
-    group.bench_with_input("single-mix", &(n, i), |b, i| {
-        b.iter(|| black_box(bit128_single_mix(i.0, i.1)))
-    });
-    group.bench_with_input("double", &(pow - 1, n, i), |b, i| {
+    group.bench_with_input("double-small", &(pow - 1, n, i), |b, i| {
         b.iter(|| black_box(bit128_double(i.0, i.1, i.2)))
     });
-    group.bench_with_input("double-mix", &(pow - 1, n, i), |b, i| {
-        b.iter(|| black_box(bit128_double_mix(i.0, i.1, i.2)))
+    let i = 24_usize;
+    let pow = 10_u128.pow(i as u32);
+    group.bench_with_input("double-big", &(pow - 1, n, i), |b, i| {
+        b.iter(|| black_box(bit128_double(i.0, i.1, i.2)))
     });
 
     // done

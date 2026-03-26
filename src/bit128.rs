@@ -91,7 +91,12 @@ pub fn div_double(n_high: u128, n_low: u128, i: usize) -> Option<(u128, u128)> {
     if &n_high >= exp {
         return None;
     }
-    Some(unsafe { unchecked_div_double(n_high, n_low, i) })
+    if i <= 19 {
+        unsafe { unchecked_div_double_small(n_high, n_low, i) }
+    } else {
+        unsafe { unchecked_div_double_big(n_high, n_low, i) }
+    }
+    .into() // Some()
 }
 
 /// Calculate division: `[n_high, n_low] / 10.pow(i)` , return the
@@ -103,6 +108,14 @@ pub fn div_double(n_high: u128, n_low: u128, i: usize) -> Option<(u128, u128)> {
 ///
 /// It's UB if: `i > 38` or `n_high >= 10.pow(i)`.
 pub unsafe fn unchecked_div_double(n_high: u128, n_low: u128, i: usize) -> (u128, u128) {
+    if i <= 19 {
+        unsafe { unchecked_div_double_small(n_high, n_low, i) }
+    } else {
+        unsafe { unchecked_div_double_big(n_high, n_low, i) }
+    }
+}
+
+unsafe fn unchecked_div_double_big(n_high: u128, n_low: u128, i: usize) -> (u128, u128) {
     debug_assert!(i < POWERS.len());
     let exp = unsafe { *POWERS.get_unchecked(i) };
 
@@ -201,29 +214,6 @@ pub unsafe fn unchecked_div_double(n_high: u128, n_low: u128, i: usize) -> (u128
     } else {
         debug_assert!((r_low - exp).trailing_zeros() >= zeros);
         (q + 1, (r_low - exp) >> zeros)
-    }
-}
-
-pub fn div_double_mix(n_high: u128, n_low: u128, i: usize) -> Option<(u128, u128)> {
-    let Some(exp) = POWERS.get(i) else {
-        return None;
-    };
-    if &n_high >= exp {
-        return None;
-    }
-    if i <= 19 {
-        unsafe { unchecked_div_double_small(n_high, n_low, i) }
-    } else {
-        unsafe { unchecked_div_double(n_high, n_low, i) }
-    }
-    .into() // Some()
-}
-
-pub unsafe fn unchecked_div_double_mix(n_high: u128, n_low: u128, i: usize) -> (u128, u128) {
-    if i <= 19 {
-        unsafe { unchecked_div_double_small(n_high, n_low, i) }
-    } else {
-        unsafe { unchecked_div_double(n_high, n_low, i) }
     }
 }
 
