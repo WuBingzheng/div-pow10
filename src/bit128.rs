@@ -170,7 +170,16 @@ pub unsafe fn unchecked_div_double(n_high: u128, n_low: u128, i: usize) -> (u128
     let z_low = n_low << zeros;
 
     // calc: (m_high, m_low) := (magic * zn) >> 128
-    let (m1_high, _) = mul2(z_low, magic);
+    //
+    // We should have calculated m1_high as:
+    //   let (m1_high, _) = mul2(z_low, magic);
+    // But we only do the highest multiplication, which is faster,
+    // and right if:
+    //   (zn * Rm / exp) + Rs + 2 * 2^96 < 2 * 2^256
+    // which is satisfied for the above magics,
+    // where Rm is the remainder when calculating magic, and Rs is
+    // the remainder of the bit-right-shift in this algorithm.
+    let m1_high = (z_low >> 64) * (magic >> 64);
     let (m2_high, m2_low) = mul2(z_high, magic);
 
     let (m_low, carry) = m2_low.overflowing_add(m1_high);
@@ -187,49 +196,12 @@ pub unsafe fn unchecked_div_double(n_high: u128, n_low: u128, i: usize) -> (u128
     debug_assert_eq!(n_high, pp_high + borrow as u128); // 10.pow(38)*2 < MAX
 
     if r_low < exp {
-        (q, r_low)
+        debug_assert!(exp.trailing_zeros() >= zeros);
+        (q, r_low >> zeros)
     } else {
-        (q + 1, r_low - exp)
+        debug_assert!((r_low - exp).trailing_zeros() >= zeros);
+        (q + 1, (r_low - exp) >> zeros)
     }
-}
-
-pub fn div_single_mix(n: u128, i: usize) -> Option<u128> {
-    if i <= 9 {
-        Some(unsafe { unchecked_div_single_small(n, i) })
-    } else if i <= POWERS.len() {
-        Some(unsafe { unchecked_div_single(n, i) })
-    } else {
-        None
-    }
-}
-
-pub unsafe fn unchecked_div_single_mix(n: u128, i: usize) -> u128 {
-    if i <= 9 {
-        unsafe { unchecked_div_single_small(n, i) }
-    } else {
-        unsafe { unchecked_div_single(n, i) }
-    }
-}
-
-// i.pow(10) fits in 32-bits.
-unsafe fn unchecked_div_single_small(n: u128, i: usize) -> u128 {
-    debug_assert!(i <= 9);
-    let exp = POWERS[i] as u64;
-
-    let high = (n >> 64) as u64;
-    let low = n as u64;
-
-    let q1 = high / exp;
-    let r = high % exp;
-
-    let mid = r << 32 | low >> 32;
-    let q2 = mid / exp;
-    let r = mid % exp;
-
-    let lowlow = r << 32 | (low & u32::MAX as u64);
-    let q3 = lowlow / exp;
-
-    (q1 as u128) << 64 | (q2 as u128) << 32 | q3 as u128
 }
 
 pub fn div_double_mix(n_high: u128, n_low: u128, i: usize) -> Option<(u128, u128)> {
