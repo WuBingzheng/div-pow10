@@ -78,6 +78,26 @@ pub unsafe fn unchecked_div_single(n: u128, i: usize) -> u128 {
     (high + ((n - high) >> 1)) >> magic.1
 }
 
+/// Calculate: `(a * b + c) / 10.pow(i)`, return the quotient and remainder.
+///
+/// Return `None` if: `i > 38` or overflow.
+pub fn mul_div(a: u128, b: u128, c: u128, i: usize) -> Option<(u128, u128)> {
+    let (high, low) = mul2(a, b);
+    let (low, carry) = low.overflowing_add(c);
+    div_double(high + carry as u128, low, i)
+}
+
+/// Calculate: `(a * b + c) / 10.pow(i)`, return the quotient and remainder.
+///
+/// # Safety:
+///
+/// It's UB if: `i > 38` or overflow.
+pub fn unchecked_mul_div(a: u128, b: u128, c: u128, i: usize) -> (u128, u128) {
+    let (high, low) = mul2(a, b);
+    let (low, carry) = low.overflowing_add(c);
+    unsafe { unchecked_div_double(high + carry as u128, low, i) }
+}
+
 /// Calculate division: `[n_high, n_low] / 10.pow(i)`, return the
 /// quotient and remainder.
 ///
@@ -217,7 +237,7 @@ unsafe fn unchecked_div_double_big(n_high: u128, n_low: u128, i: usize) -> (u128
     }
 }
 
-// i.pow(10) fits in 64-bits.
+// if i.pow(10) fits in 64-bits
 unsafe fn unchecked_div_double_small(n_high: u128, n_low: u128, i: usize) -> (u128, u128) {
     debug_assert!(i <= 19);
     debug_assert!(n_high < POWERS[i]);
