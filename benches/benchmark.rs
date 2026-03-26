@@ -24,6 +24,10 @@ fn bit64_single(a: u64, i: u32) -> u64 {
     unsafe { bit64::unchecked_div_single(a, i) }
 }
 #[inline(never)]
+fn bit64_single_r1b(a: u64, i: u32) -> u64 {
+    unsafe { bit64::unchecked_div_single_r1b(a, i) }
+}
+#[inline(never)]
 fn bit64_double(a: u128, i: u32) -> (u64, u64) {
     unsafe { bit64::unchecked_div_double(a, i) }
 }
@@ -39,6 +43,10 @@ fn bit128_prim_const(a: u128) -> u128 {
 #[inline(never)]
 fn bit128_single(a: u128, i: u32) -> u128 {
     unsafe { bit128::unchecked_div_single(a, i) }
+}
+#[inline(never)]
+fn bit128_single_r1b(a: u128, i: u32) -> u128 {
+    unsafe { bit128::unchecked_div_single_r1b(a, i) }
 }
 #[inline(never)]
 fn bit128_double(a: u128, b: u128, i: u32) -> (u128, u128) {
@@ -77,6 +85,9 @@ fn bench_bit64(c: &mut Criterion) {
     group.bench_with_input("single", &(n, i), |b, i| {
         b.iter(|| black_box(bit64_single(i.0, i.1)))
     });
+    group.bench_with_input("single-r1b", &(n, i), |b, i| {
+        b.iter(|| black_box(bit64_single_r1b(i.0, i.1)))
+    });
     group.bench_with_input("double", &(d, i), |b, i| {
         b.iter(|| black_box(bit64_double(i.0, i.1)))
     });
@@ -99,6 +110,9 @@ fn bench_bit128(c: &mut Criterion) {
     });
     group.bench_with_input("single", &(n, i), |b, i| {
         b.iter(|| black_box(bit128_single(i.0, i.1)))
+    });
+    group.bench_with_input("single-r1b", &(n, i), |b, i| {
+        b.iter(|| black_box(bit128_single_r1b(i.0, i.1)))
     });
     group.bench_with_input("double-small", &(pow - 1, n, i), |b, i| {
         b.iter(|| black_box(bit128_double(i.0, i.1, i.2)))

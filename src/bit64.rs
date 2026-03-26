@@ -21,27 +21,46 @@ pub fn div_single(n: u64, i: u32) -> Option<u64> {
 ///
 /// It's UB if: `i == 0` or `i > 19`.
 pub unsafe fn unchecked_div_single(n: u64, i: u32) -> u64 {
-    const GM_EXP_MAGICS: [(u64, u32); 20] = [
-        (0, 0),
-        (0x999999999999999a, 3),
-        (0x47ae147ae147ae15, 6),
-        (0x0624dd2f1a9fbe77, 9),
-        (0xa36e2eb1c432ca58, 13),
-        (0x4f8b588e368f0847, 16),
-        (0x0c6f7a0b5ed8d36c, 19),
-        (0xad7f29abcaf48579, 23),
-        (0x5798ee2308c39dfa, 26),
-        (0x12e0be826d694b2f, 29),
-        (0xb7cdfd9d7bdbab7e, 33),
-        (0x5fd7fe17964955fe, 36),
-        (0x19799812dea11198, 39),
-        (0xc25c268497681c27, 43),
-        (0x6849b86a12b9b01f, 46),
-        (0x203af9ee756159b3, 49),
-        (0xcd2b297d889bc2b7, 53),
-        (0x70ef54646d496893, 56),
-        (0x2725dd1d243aba0f, 59),
-        (0xd83c94fb6d2ac34b, 63),
+    unsafe { do_unchecked_div_single(n, i, false) }
+}
+
+/// Calculate division: `n / 10.pow(i)`.
+///
+/// The divident is 63-bit. This is 1 bit less than the
+/// [`unchecked_div_single`], and is slightly faster.
+///
+/// Besides, this works with `i = 0`.
+///
+/// # Saftey:
+///
+/// It's UB if `i > 19` or `n > 2.pow(63)`.
+pub unsafe fn unchecked_div_single_r1b(n: u64, i: u32) -> u64 {
+    debug_assert!(n <= 2_u64.pow(63));
+    unsafe { do_unchecked_div_single(n, i, true) }
+}
+
+unsafe fn do_unchecked_div_single(n: u64, i: u32, is_r1b: bool) -> u64 {
+    const GM_EXP_MAGICS: [(u64, u32, u32); 20] = [
+        (0, 0, 0),
+        (0x999999999999999a, 4, 3),
+        (0x47ae147ae147ae15, 7, 6),
+        (0x0624dd2f1a9fbe77, 10, 9),
+        (0xa36e2eb1c432ca58, 14, 13),
+        (0x4f8b588e368f0847, 17, 16),
+        (0x0c6f7a0b5ed8d36c, 20, 19),
+        (0xad7f29abcaf48579, 24, 23),
+        (0x5798ee2308c39dfa, 27, 26),
+        (0x12e0be826d694b2f, 30, 29),
+        (0xb7cdfd9d7bdbab7e, 34, 33),
+        (0x5fd7fe17964955fe, 37, 36),
+        (0x19799812dea11198, 40, 39),
+        (0xc25c268497681c27, 44, 43),
+        (0x6849b86a12b9b01f, 47, 46),
+        (0x203af9ee756159b3, 50, 49),
+        (0xcd2b297d889bc2b7, 54, 53),
+        (0x70ef54646d496893, 57, 56),
+        (0x2725dd1d243aba0f, 60, 59),
+        (0xd83c94fb6d2ac34b, 64, 63),
     ];
 
     let magic = unsafe { GM_EXP_MAGICS.get_unchecked(i as usize) };
@@ -49,9 +68,14 @@ pub unsafe fn unchecked_div_single(n: u64, i: u32) -> u64 {
     // (n + ((n * m) >> 64)) >> l
     let high = ((n as u128 * magic.0 as u128) >> 64) as u64;
 
-    // n + high may overflow, so
-    // note: magic.1 = l - 1
-    (high + ((n - high) >> 1)) >> magic.1
+    if is_r1b {
+        // no overflow
+        (high + n) >> magic.1
+    } else {
+        // n + high may overflow, so
+        // note: magic.1 = l - 1
+        (high + ((n - high) >> 1)) >> magic.2
+    }
 }
 
 /// Calculate division: `n / 10.pow(i)`, return the quotient and remainder.
