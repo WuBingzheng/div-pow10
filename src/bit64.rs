@@ -21,27 +21,28 @@ pub fn div_single(n: u64, i: u32) -> Option<u64> {
 ///
 /// It's UB if: `i == 0` or `i > 19`.
 pub unsafe fn unchecked_div_single(n: u64, i: u32) -> u64 {
+    debug_assert!(i > 0);
     unsafe { do_unchecked_div_single(n, i, false) }
 }
 
 /// Calculate division: `n / 10.pow(i)`.
 ///
-/// The divident is 63-bit. This is 1 bit less than the
-/// [`unchecked_div_single`], and is slightly faster.
-///
-/// Besides, this works with `i = 0`.
+/// Compared to [`unchecked_div_single`], this divident is 63-bit,
+/// which is 1 bit less. This is slightly faster.
+/// Besides, this works with `i = 0`, but not works with `i == 19`.
 ///
 /// # Saftey:
 ///
-/// It's UB if `i > 19` or `n > 2.pow(63)`.
+/// It's UB if `i > 18` or `n > 2.pow(63)`.
 pub unsafe fn unchecked_div_single_r1b(n: u64, i: u32) -> u64 {
     debug_assert!(n <= 2_u64.pow(63));
+    debug_assert!(i < 19);
     unsafe { do_unchecked_div_single(n, i, true) }
 }
 
 unsafe fn do_unchecked_div_single(n: u64, i: u32, is_r1b: bool) -> u64 {
     const GM_EXP_MAGICS: [(u64, u32, u32); 20] = [
-        (0, 0, 0),
+        (0, 0, u32::MAX),
         (0x999999999999999a, 4, 3),
         (0x47ae147ae147ae15, 7, 6),
         (0x0624dd2f1a9fbe77, 10, 9),
@@ -60,9 +61,10 @@ unsafe fn do_unchecked_div_single(n: u64, i: u32, is_r1b: bool) -> u64 {
         (0xcd2b297d889bc2b7, 54, 53),
         (0x70ef54646d496893, 57, 56),
         (0x2725dd1d243aba0f, 60, 59),
-        (0xd83c94fb6d2ac34b, 64, 63),
+        (0xd83c94fb6d2ac34b, u32::MAX, 63),
     ];
 
+    debug_assert!(i < 20);
     let magic = unsafe { GM_EXP_MAGICS.get_unchecked(i as usize) };
 
     // (n + ((n * m) >> 64)) >> l
@@ -205,6 +207,10 @@ mod tests {
             for j in 0..COUNT {
                 let n = j * STEP;
                 assert_eq!(div_single(n, i), Some(n / pow));
+
+                if i < 19 && n <= 2_u64.pow(63) {
+                    assert_eq!(unsafe { unchecked_div_single_r1b(n, i) }, n / pow);
+                }
             }
         }
     }

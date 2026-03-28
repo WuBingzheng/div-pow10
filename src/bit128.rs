@@ -21,14 +21,14 @@ pub fn div_single(n: u128, i: u32) -> Option<u128> {
 ///
 /// It's UB if `i == 0` or `i > 38`.
 pub unsafe fn unchecked_div_single(n: u128, i: u32) -> u128 {
+    debug_assert!(i > 0);
     unsafe { do_unchecked_div_single(n, i, false) }
 }
 
 /// Calculate division: `n / 10.pow(i)`.
 ///
-/// The divident is 127-bit. This is 1 bit less than the
-/// [`unchecked_div_single`], and is slightly faster.
-///
+/// Compared to [`unchecked_div_single`], this divident is 127-bit,
+/// which is 1 bit less. This is slightly faster.
 /// Besides, this works with `i = 0`.
 ///
 /// # Saftey:
@@ -48,7 +48,7 @@ unsafe fn do_unchecked_div_single(n: u128, i: u32, is_r1b: bool) -> u128 {
     //    m = m - pow(2, 128) # make m fit in 128-bit
     //    return (m, l)
     const GM_EXP_MAGICS: [(u128, u32, u32); 39] = [
-        (0, 0, 0),
+        (0, u32::MAX, 0),
         (0x9999999999999999999999999999999a, 4, 3),
         (0x47ae147ae147ae147ae147ae147ae148, 7, 6),
         (0x0624dd2f1a9fbe76c8b4395810624dd3, 10, 9),
@@ -89,6 +89,7 @@ unsafe fn do_unchecked_div_single(n: u128, i: u32, is_r1b: bool) -> u128 {
         (0xb38fb9daa78e44ab2dcf7a6b19209443, 127, 126),
     ];
 
+    debug_assert!(i < 39);
     let magic = unsafe { GM_EXP_MAGICS.get_unchecked(i as usize) };
 
     // (n + ((n * m) >> 128)) >> l
@@ -118,7 +119,7 @@ pub fn mul_div(a: u128, b: u128, c: u128, i: u32) -> Option<(u128, u128)> {
 /// # Safety:
 ///
 /// It's UB if: `i > 38` or overflow.
-pub fn unchecked_mul_div(a: u128, b: u128, c: u128, i: u32) -> (u128, u128) {
+pub unsafe fn unchecked_mul_div(a: u128, b: u128, c: u128, i: u32) -> (u128, u128) {
     let (high, low) = mul2(a, b);
     let (low, carry) = low.overflowing_add(c);
     unsafe { unchecked_div_double(high + carry as u128, low, i) }
@@ -339,6 +340,10 @@ mod tests {
             for j in 0..COUNT {
                 let n = j * STEP;
                 assert_eq!(div_single(n, i), Some(n / pow));
+
+                if n <= 2_u128.pow(127) {
+                    assert_eq!(unsafe { unchecked_div_single_r1b(n, i) }, n / pow);
+                }
             }
         }
     }
