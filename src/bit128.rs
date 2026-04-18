@@ -19,9 +19,8 @@ pub fn div_single(n: u128, i: u32) -> Option<u128> {
 ///
 /// # Saftey:
 ///
-/// It's UB if `i == 0` or `i > 38`.
+/// It's UB if `i > 38`.
 pub unsafe fn unchecked_div_single(n: u128, i: u32) -> u128 {
-    debug_assert!(i > 0);
     unsafe { do_unchecked_div_single(n, i, false) }
 }
 
@@ -33,8 +32,9 @@ pub unsafe fn unchecked_div_single(n: u128, i: u32) -> u128 {
 ///
 /// # Saftey:
 ///
-/// It's UB if `i > 38` or `n > 2.pow(127)`.
+/// It's UB if `i == 0` or `i > 38` or `n > 2.pow(127)`.
 pub unsafe fn unchecked_div_single_r1b(n: u128, i: u32) -> u128 {
+    debug_assert!(i > 0);
     debug_assert!(n <= 2_u128.pow(127));
     unsafe { do_unchecked_div_single(n, i, true) }
 }
