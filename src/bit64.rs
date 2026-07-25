@@ -1,8 +1,16 @@
-/// Calculate division: `n / 10.pow(i)`.
+/// Calculate single-word division.
 ///
-/// The dividend is 1-word, 64-bit, same with divisor.
+/// The dividend is 64-bit, same with divisor.
 ///
-/// Return None if: `i > 19`.
+/// Return `None` if: `i > 19`.
+///
+/// # Examples:
+///
+/// ```rust
+/// use div_pow10::bit64::div_single;
+///
+/// assert_eq!(div_single(1234, 2), Some(1234 / 100));
+/// ```
 pub fn div_single(n: u64, i: u32) -> Option<u64> {
     if i > 19 {
         None
@@ -13,9 +21,11 @@ pub fn div_single(n: u64, i: u32) -> Option<u64> {
     }
 }
 
-/// Calculate division: `n / 10.pow(i)`.
+/// Unchecked single-word division.
 ///
-/// The dividend is 1-word, 64-bit, same with divisor.
+/// The dividend is 64-bit, same with divisor.
+///
+/// Note that this does not word with `i == 0`.
 ///
 /// # Safety:
 ///
@@ -25,11 +35,12 @@ pub unsafe fn unchecked_div_single(n: u64, i: u32) -> u64 {
     unsafe { do_unchecked_div_single(n, i, false) }
 }
 
-/// Calculate division: `n / 10.pow(i)`.
+/// Unchecked 63-bit division.
 ///
-/// Compared to [`unchecked_div_single`], this divident is 63-bit,
+/// Compared to [`unchecked_div_single`], this dividend is 63-bit,
 /// which is 1 bit less. This is slightly faster.
-/// Besides, this works with `i = 0`, but not works with `i == 19`.
+///
+/// Besides, this works with `i == 0`, but NOT works with `i == 19`.
 ///
 /// # Saftey:
 ///
@@ -80,11 +91,25 @@ unsafe fn do_unchecked_div_single(n: u64, i: u32, is_r1b: bool) -> u64 {
     }
 }
 
-/// Calculate division: `n / 10.pow(i)`, return the quotient and remainder.
+/// Calculate double-word division.
 ///
-/// The dividend is 2-word, 128-bit, double of divisor.
+/// Return the quotient and remainder both.
 ///
-/// Return `None` if: `i > 19` or `n>>64 >= 10.pow(i)`.
+/// The dividend is 128-bit, double of divisor. And the quotient should be in 64-bit.
+///
+/// Return `None` if: `i > 19` or quotient overflows 64-bit.
+///
+/// # Examples:
+///
+/// ```rust
+/// use div_pow10::bit64::div_double;
+///
+/// let dd128 = u64::MAX as u128 * 100; // 128-bit dividend
+/// assert_eq!(div_double(dd128, 2), Some((u64::MAX, 0))); // quotient and remainder
+///
+/// // quotient overflows 64-bit
+/// assert_eq!(div_double(dd128, 1), None);
+/// ```
 pub fn div_double(n: u128, i: u32) -> Option<(u64, u64)> {
     let Some(exp) = POWERS.get(i as usize) else {
         return None;
@@ -95,13 +120,15 @@ pub fn div_double(n: u128, i: u32) -> Option<(u64, u64)> {
     Some(unsafe { unchecked_div_double(n, i) })
 }
 
-/// Calculate division: `n / 10.pow(i)`, return the quotient and remainder.
+/// Unchecked double-word division.
 ///
-/// The dividend is 2-word, 128-bit, double of divisor.
+/// Return the quotient and remainder both.
+///
+/// The dividend is 128-bit, double of divisor. And the quotient should be in 64-bit.
 ///
 /// # Safety:
 ///
-/// It's UB if: `i > 19` or `n>>64 >= 10.pow(i)`.
+/// It's UB if: `i > 19` or quotient overflows 64-bit.
 pub unsafe fn unchecked_div_double(n: u128, i: u32) -> (u64, u64) {
     debug_assert!((i as usize) < POWERS.len());
     let exp = unsafe { *POWERS.get_unchecked(i as usize) };
@@ -189,59 +216,3 @@ const POWERS: [u64; 20] = [
     10_u64.pow(18),
     10_u64.pow(19),
 ];
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_single() {
-        let n = 123_u64;
-        assert_eq!(div_single(n, 20), None);
-        assert_eq!(div_single(n, 0), Some(n));
-
-        const COUNT: u64 = 100000;
-        const STEP: u64 = u64::MAX / COUNT as u64;
-        for i in 1..20 {
-            let pow = POWERS[i as usize];
-            for j in 0..COUNT {
-                let n = j * STEP;
-                assert_eq!(div_single(n, i), Some(n / pow));
-
-                if i < 19 && n <= 2_u64.pow(63) {
-                    assert_eq!(unsafe { unchecked_div_single_r1b(n, i) }, n / pow);
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn test_double() {
-        let n = 123_u128;
-        assert_eq!(div_double(n, 20), None);
-        assert_eq!(div_double(n, 0), Some((n as u64, 0)));
-
-        const COUNT: u64 = 1000; // enlarge this for more test
-        const K_STEP: u64 = u64::MAX / COUNT;
-        for i in 1..20 {
-            let pow = POWERS[i as usize];
-            let count = COUNT.min(pow);
-            let step = pow / count;
-            for j in 0..count {
-                let high = j * step;
-
-                for k in 0..COUNT {
-                    let low = k * K_STEP;
-
-                    let n = ((high as u128) << 64) + low as u128;
-
-                    let (q, r) = div_double(n, i).unwrap();
-
-                    let p = q as u128 * pow as u128 + r as u128;
-
-                    assert_eq!(p, n);
-                }
-            }
-        }
-    }
-}

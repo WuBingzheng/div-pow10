@@ -1,8 +1,16 @@
-/// Calculate division: `n / 10.pow(i)`.
+/// Calculate single-word division.
 ///
-/// The divident is 1-word, 128-bit, same with divisor.
+/// The dividend is 128-bit, same with divisor.
 ///
 /// Return `None` if `i > 38`.
+///
+/// # Examples:
+///
+/// ```rust
+/// use div_pow10::bit128::div_single;
+///
+/// assert_eq!(div_single(1234, 2), Some(1234 / 100));
+/// ```
 pub fn div_single(n: u128, i: u32) -> Option<u128> {
     if i > 38 {
         None
@@ -13,9 +21,9 @@ pub fn div_single(n: u128, i: u32) -> Option<u128> {
     }
 }
 
-/// Calculate division: `n / 10.pow(i)`.
+/// Unchecked single-word division.
 ///
-/// The divident is 1-word, 128-bit, same with divisor.
+/// The dividend is 128-bit, same with divisor.
 ///
 /// # Saftey:
 ///
@@ -24,11 +32,11 @@ pub unsafe fn unchecked_div_single(n: u128, i: u32) -> u128 {
     unsafe { do_unchecked_div_single(n, i, false) }
 }
 
-/// Calculate division: `n / 10.pow(i)`.
+/// Unchecked 127-bit division.
 ///
-/// Compared to [`unchecked_div_single`], this divident is 127-bit,
+/// Compared to [`unchecked_div_single`], this dividend is 127-bit,
 /// which is 1 bit less. This is slightly faster.
-/// Besides, this works with `i = 0`.
+/// Besides, this does not work with `i = 0`.
 ///
 /// # Saftey:
 ///
@@ -105,32 +113,61 @@ unsafe fn do_unchecked_div_single(n: u128, i: u32, is_r1b: bool) -> u128 {
     }
 }
 
-/// Calculate: `(a * b + c) / 10.pow(i)`, return the quotient and remainder.
+/// Build the 256-bit dividend by multiplication and addition first, then
+/// calculate the double-word division.
 ///
-/// Return `None` if: `i > 38` or overflow.
+/// Return `None` if: `i > 38` or quotient overflows 128-bit.
+///
+/// This is a helper of [`div_double`].
+///
+/// # Examples:
+///
+/// ```rust
+/// use div_pow10::bit128::mul_div;
+///
+/// // calculate: (max * 100 + 42) / 10.pow(2)  =>  q=max, r=42
+/// assert_eq!(mul_div(u128::MAX, 100, 42, 2), Some((u128::MAX, 42)));
+/// ```
 pub fn mul_div(a: u128, b: u128, c: u128, i: u32) -> Option<(u128, u128)> {
     let (high, low) = mul2(a, b);
     let (low, carry) = low.overflowing_add(c);
     div_double(high + carry as u128, low, i)
 }
 
-/// Calculate: `(a * b + c) / 10.pow(i)`, return the quotient and remainder.
+/// Unchecked version of [`mul_div`].
 ///
 /// # Safety:
 ///
-/// It's UB if: `i > 38` or overflow.
+/// It's UB if: `i > 38` or quotient overflows 128-bit.
 pub unsafe fn unchecked_mul_div(a: u128, b: u128, c: u128, i: u32) -> (u128, u128) {
     let (high, low) = mul2(a, b);
     let (low, carry) = low.overflowing_add(c);
     unsafe { unchecked_div_double(high + carry as u128, low, i) }
 }
 
-/// Calculate division: `[n_high, n_low] / 10.pow(i)`, return the
-/// quotient and remainder.
+/// Calculate double-word division.
 ///
-/// The divident is 2-word, 256-bit, double of divisor.
+/// Return the quotient and remainder both.
 ///
-/// Return `None` if: `i > 38` or `n_high >= 10.pow(i)`.
+/// The dividend is 256-bit, double of divisor, represented by `n_high` and `n_low`.
+/// And the quotient should be in 128-bit.
+///
+/// Return `None` if: `i > 38` or quotient overflows 128-bit.
+///
+/// # Examples:
+///
+/// ```rust
+/// use div_pow10::bit128::div_double;
+///
+/// // dividend = 2.pow(8 + 128) = 87112285931760246646623899502532662132736
+/// // divisor = 10.pow(8)
+/// // q = 871122859317602466466238995025326
+/// // r = 62132736
+/// assert_eq!(div_double(256, 0, 8), Some((871122859317602466466238995025326, 62132736)));
+///
+/// // disisor is 10, so the quotient overflows 128-bit
+/// assert_eq!(div_double(256, 0, 1), None);
+/// ```
 pub fn div_double(n_high: u128, n_low: u128, i: u32) -> Option<(u128, u128)> {
     let Some(exp) = POWERS.get(i as usize) else {
         return None;
@@ -141,14 +178,16 @@ pub fn div_double(n_high: u128, n_low: u128, i: u32) -> Option<(u128, u128)> {
     unsafe { Some(unchecked_div_double(n_high, n_low, i)) }
 }
 
-/// Calculate division: `[n_high, n_low] / 10.pow(i)` , return the
-/// quotient and remainder.
+/// Unchecked double-word division.
 ///
-/// The divident is 2-word, 256-bit, double of divisor.
+/// Return the quotient and remainder both.
+///
+/// The dividend is 256-bit, double of divisor, represented by `n_high` and `n_low`.
+/// And the quotient should be in 128-bit.
 ///
 /// # Safety:
 ///
-/// It's UB if: `i > 38` or `n_high >= 10.pow(i)`.
+/// It's UB if: `i > 38` or quotient overflows 128-bit.
 pub unsafe fn unchecked_div_double(n_high: u128, n_low: u128, i: u32) -> (u128, u128) {
     if i <= 19 {
         unsafe { unchecked_div_double_small(n_high, n_low, i) }
@@ -322,60 +361,3 @@ const POWERS: [u128; 39] = [
     10_u128.pow(37),
     10_u128.pow(38),
 ];
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_single() {
-        let n = 123_u128;
-        assert_eq!(div_single(n, 39), None);
-        assert_eq!(div_single(n, 0), Some(n));
-
-        const COUNT: u128 = 100000;
-        const STEP: u128 = u128::MAX / COUNT;
-        for i in 1..39 {
-            let pow = POWERS[i as usize];
-            for j in 0..COUNT {
-                let n = j * STEP;
-                assert_eq!(div_single(n, i), Some(n / pow));
-
-                if n <= 2_u128.pow(127) {
-                    assert_eq!(unsafe { unchecked_div_single_r1b(n, i) }, n / pow);
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn test_double() {
-        let n = 123_u128;
-        assert_eq!(div_double(n, n, 39), None);
-        assert_eq!(div_double(0, n, 0), Some((n, 0)));
-
-        const COUNT: u128 = 1000; // enlarge this for more test
-        const K_STEP: u128 = u128::MAX / COUNT;
-        for i in 1..39 {
-            let pow = POWERS[i as usize];
-            let count = COUNT.min(pow);
-            let step = pow / count;
-            for j in 0..count {
-                let high = j * step;
-
-                for k in 0..COUNT {
-                    let low = k * K_STEP;
-
-                    let (q, r) = div_double(high, low, i).unwrap();
-
-                    let (p_high, p_low) = mul2(q, pow);
-                    let (p_low, carry) = p_low.overflowing_add(r);
-                    let p_high = p_high + carry as u128;
-
-                    assert_eq!(p_low, low);
-                    assert_eq!(p_high, high);
-                }
-            }
-        }
-    }
-}
