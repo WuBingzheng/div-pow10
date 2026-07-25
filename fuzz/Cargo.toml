@@ -1,0 +1,29 @@
+[package]
+name = "div-pow10-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+arbitrary = { features = ["derive"], version = "1.0" }
+libfuzzer-sys = "0.4"
+
+[dependencies.div-pow10]
+path = ".."
+
+[[bin]]
+name = "bit64"
+path = "fuzz_targets/bit64.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "bit128"
+path = "fuzz_targets/bit128.rs"
+test = false
+doc = false
+bench = false
